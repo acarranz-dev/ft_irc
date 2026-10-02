@@ -9,7 +9,7 @@
 /*   Updated: 2026/10/02 22:15:06 by sarodrig         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
-#include "server.hpp"
+#include "Server.hpp"
 
 #include <iostream>
 #include <sstream>

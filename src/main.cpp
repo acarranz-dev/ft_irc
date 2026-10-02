@@ -9,8 +9,10 @@
 /*   Updated: 2026/10/02 21:23:32 by sarodrig         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
+#include <cctype>
+#include <cstdlib>
 #include <iostream>
-#include "server.hpp"
+#include "Server.hpp"
 
 bool isValidPort(const std::string& portStr) {
 	if (portStr.empty())

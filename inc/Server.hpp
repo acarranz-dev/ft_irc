@@ -19,6 +19,8 @@
 # include <poll.h>
 
 struct Client {
+	Client();
+
 	std::string	nick;
 	std::string	user;
 	std::string	input;
@@ -28,6 +30,8 @@ struct Client {
 };
 
 struct Channel {
+	Channel();
+
 	std::set<int>	members;
 	std::set<int>	operators;
 	std::set<int>	invited;
