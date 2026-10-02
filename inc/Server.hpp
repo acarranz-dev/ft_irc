@@ -5,10 +5,12 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: sarodrig <sarodrig@student.42barcelona.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/10/02 22:08:08 by sarodrig          #+#    #+#             */
+/*   Created: 2026/10/02 22:08:08 by sarodrig         #+#    #+#             */
 /*   Updated: 2026/10/02 22:08:08 by sarodrig         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
+//acrranz 
+
 #ifndef SERVER_HPP
 # define SERVER_HPP
 
