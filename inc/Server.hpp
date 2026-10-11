@@ -57,24 +57,24 @@ private:
 	// Server& operator=(const Server&);
 
 	int						_port;
-	int						_serverFd;
 	std::string				_password;
+	int						_socketFd;
 	bool					_running;
 	std::map<int, Client>	_clients;
 	std::map<std::string, Channel> _channels;
 	std::vector<pollfd>		_pollFds;
 
-	// void	setNonBlocking(int fd);
-	// void	addPollFd(int fd, short events);
-	// void	removePollFd(int fd);
-	// void	acceptClient();
-	// void	readClient(int fd);
-	// void	writeClient(int fd);
-	// void	closeClient(int fd);
-	// void	processInput(int fd);
-	// void	handleCommand(int fd, const std::string& line);
-	// void	queueMessage(int fd, const std::string& message);
-	// void	updatePollEvents(int fd);
+	void	setNonBlocking(int fd); 
+	void	addPollFd(int fd, short events);
+	void	removePollFd(int fd);
+	void	updatePollFd(int fd);
+	void	_handleNewClient();
+	void	_handleReadClient(int fd);
+	void	_handleWriteClient(int fd);
+	void	_handleCloseClient(int fd);
+	void	processInput(int fd);
+	void	queueMessage(int fd, const std::string& message);
+	//void	handleCommand(int fd, const std::string& line);
 
 };
 

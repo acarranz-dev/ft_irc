@@ -42,8 +42,7 @@ Channel::Channel()
 /* Server                                                                     */
 /* -------------------------------------------------------------------------- */
 Server::Server(int port, const std::string& password)
-: _port(port), _serverFd(-1), _password(password), _running(false) {
-}
+: _port(port), _password(password), _socketFd(-1), _running(false) {}
 
 Server::~Server() {
 	_running = false;
@@ -52,294 +51,288 @@ Server::~Server() {
 		 it != _clients.end(); ++it)
 		close(it->first);
 
-	if (_serverFd != -1)
-		close(_serverFd);
+	if (_socketFd != -1)
+		close(_socketFd);
 }
 
-// void Server::setNonBlocking(int fd) {
-// 	int flags = fcntl(fd, F_GETFL, 0);
+void Server::setNonBlocking(int fd) {
+	int flags = fcntl(fd, F_GETFL, 0);
 	
-// 	if (flags == -1 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
-// 		throw std::runtime_error("fcntl failed");
-// }
+	if (flags == -1 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1){
+		close(_socketFd);
+		_socketFd = -1;
+		throw std::runtime_error("Error setting fcntl() to non-blocking mode.");
+	}
+}
+
+void Server::addPollFd(int fd, short events) {
+
+	struct pollfd pFd;
+
+	pFd.fd = fd;
+	pFd.events = events;
+	pFd.revents = 0;
+	_pollFds.push_back(pFd);
+}
+
+void Server::removePollFd(int fd) {
+
+	for (std::vector<pollfd>::iterator it = _pollFds.begin();
+	it != _pollFds.end(); ++it) {
+		if (it->fd == fd) {
+			_pollFds.erase(it);
+			return;
+		}
+	}
+}
+
+void Server::updatePollFd(int fd) {
+	for (std::vector<pollfd>::iterator it = _pollFds.begin(); it != _pollFds.end(); ++it) {
+		if (it->fd == fd) {
+			it->events = POLLIN;
+			std::map<int, Client>::iterator c = _clients.find(fd);
+			if (c != _clients.end() && !c->second.output.empty()) {
+				it->events |= POLLOUT;
+				return;
+			}
+		}
+	}
+}
 
 void Server::init() {
-	// _serverFd = socket(AF_INET, SOCK_STREAM, 0);
-	// if (_serverFd == -1)
-	// 	throw std::runtime_error("socket failed");
 
-	// int yes = 1;
-	// if (setsockopt(_serverFd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == -1)
-	// 	throw std::runtime_error("setsockopt failed");
+	_socketFd = socket(AF_INET, SOCK_STREAM, 0);
+	if (_socketFd == -1)
+		throw std::runtime_error("Error creating server socket.");
 
-	// sockaddr_in addr;
-	// std::memset(&addr, 0, sizeof(addr));
-	// addr.sin_family = AF_INET;
-	// addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	// addr.sin_port = htons(_port);
+	int opt = 1;
+	if (setsockopt(_socketFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
 
-	// if (bind(_serverFd, (sockaddr *)&addr, sizeof(addr)) == -1)
-	// 	throw std::runtime_error("bind failed");
+	}
 
-	// if (listen(_serverFd, SOMAXCONN) == -1)
-	// 	throw std::runtime_error("listen failed");
+	setNonBlocking(_socketFd);
 
-	// try {
-	// 	setNonBlocking(_serverFd);
-	// }
-	// catch (...) {
-	// 	throw;
-	// }
+	struct sockaddr_in addr;
+	std::memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin_port = htons(_port);
 
-	// std::signal(SIGPIPE, SIG_IGN);
+	if (bind(_socketFd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+		close(_socketFd);
+		_socketFd = -1;
+		throw std::runtime_error("Error in bind(): The port may already be in use.");
+	}
 
-	// addPollFd(_serverFd, POLLIN);
-	// _running = true;
+	if (listen(_socketFd, SOMAXCONN) == -1) {
+		close(_socketFd);
+		_socketFd = -1;
+		throw std::runtime_error("Error in listen().");
+	}
 
-	// std::cout << "IRC server listening on port "
-	// 		  << _port << std::endl;
+	std::signal(SIGPIPE, SIG_IGN);
+
+	addPollFd(_socketFd, POLLIN);
+
+	_running = true;
+
+	std::cout << "IRC server listening on port "
+			  << _port << std::endl;
 }
-
-// void Server::addPollFd(int fd, short events) {
-// 	pollfd p;
-// 	p.fd = fd;
-// 	p.events = events;
-// 	p.revents = 0;
-// 	_pollFds.push_back(p);
-// }
-
-// void Server::removePollFd(int fd) {
-// 	for (std::vector<pollfd>::iterator it = _pollFds.begin();
-// 	it != _pollFds.end(); ++it) {
-// 		if (it->fd == fd) {
-// 			_pollFds.erase(it);
-// 			return;
-// 		}
-// 	}
-// }
-
-// void Server::updatePollEvents(int fd) {
-// 	for (std::vector<pollfd>::iterator it = _pollFds.begin();
-// 	it != _pollFds.end(); ++it) {
-// 		if (it->fd == fd) {
-// 			it->events = POLLIN;
-// 			std::map<int, Client>::iterator c = _clients.find(fd);
-// 			if (c != _clients.end() && !c->second.output.empty()) {
-// 				it->events |= POLLOUT;
-// 				return;
-// 			}
-// 		}
-// 	}
-// }
 
 void Server::run() {
-// 	while (_running) {
-// 		int result = poll(&_pollFds[0], _pollFds.size(), -1);
+	std::cout << "Server running. Waiting for events..." << std::endl;
+	while (_running) {
+		int pollCount = poll(&_pollFds[0], _pollFds.size(), -1);
 
-// 		if (result == -1) {
-// 			if (errno == EINTR)
-// 				continue;
-// 			throw std::runtime_error("poll failed");
-// 		}
+		if (pollCount == -1) {
+			if (errno == EINTR)
+				continue;
+			throw std::runtime_error("Error in poll() call.");
+		}
 
-// 		/*
-// 		 * Snapshot the ready events. acceptClient() and closeClient()
-// 		 * modify _pollFds, so do not iterate that vector while mutating it.
-// 		 */
-// 		std::vector<pollfd> ready(_pollFds);
+		/*
+		 * Snapshot the ready events. acceptClient() and closeClient()
+		 * modify _pollFds, so do not iterate that vector while mutating it.
+		 */
+		std::vector<pollfd> ready(_pollFds);
 
-// 		for (std::vector<pollfd>::const_iterator it = ready.begin();
-// 			 it != ready.end(); ++it) {
-// 			int fd = it->fd;
-// 			short events = it->revents;
+		for (std::vector<pollfd>::const_iterator it = ready.begin(); it != ready.end(); ++it) {
 
-// 			if (events == 0)
-// 				continue;
+			int fd = it->fd;
+			short events = it->revents;
 
-// 			if (fd == _serverFd) {
-// 				if (events & POLLIN)
-// 					acceptClient();
-// 				continue;
-// 			}
+			if (events == 0)
+				continue;
 
-// 			if (_clients.find(fd) == _clients.end())
-// 				continue;
+			if (fd == _socketFd) {
+				if (events & POLLIN)
+					_handleNewClient();
+				continue;
+			}
 
-// 			if (events & (POLLERR | POLLHUP | POLLNVAL)) {
-// 				closeClient(fd);
-// 				continue;
-// 			}
+			if (_clients.find(fd) == _clients.end())
+				continue;
 
-// 			if (events & POLLIN) {
-// 				readClient(fd);
-// 				if (_clients.find(fd) == _clients.end())
-// 					continue;
-// 			}
+			if (events & (POLLERR | POLLHUP | POLLNVAL)) {
+				_handleCloseClient(fd);
+				continue;
+			}
 
-// 			if (events & POLLOUT)
-// 				writeClient(fd);
-// 		}
-// 	}
-// }
+			if (events & POLLIN) {
+				_handleReadClient(fd);
+				if (_clients.find(fd) == _clients.end())
+					continue;
+			}
 
-// void Server::acceptClient() {
-// 	while (true) {
-// 		int fd = accept(_serverFd, NULL, NULL);
-
-// 		if (fd == -1){
-// 			if (errno == EAGAIN || errno == EWOULDBLOCK)
-// 				return;
-// 			if (errno == EINTR)
-// 				continue;
-// 			std::cerr << "accept failed: "
-// 					  << std::strerror(errno) << std::endl;
-// 			return;
-// 		}
-
-// 		try	{
-// 			setNonBlocking(fd);
-// 			_clients[fd] = Client();
-// 			addPollFd(fd, POLLIN);
-// 			queueMessage(fd, ":ircserv NOTICE * :Connected. Send PASS, NICK and USER.");
-// 		} catch (...) {
-// 			close(fd);
-// 			throw;
-// 		}
-// 	}
+			if (events & POLLOUT)
+				_handleWriteClient(fd);
+		}
+	}
 }
 
-// void Server::readClient(int fd) {
-// 	char buffer[4096];
+void Server::_handleNewClient() {
+	while (true) {
+		int fd = accept(_socketFd, NULL, NULL);
 
-// 	while (true) {
-// 		ssize_t n = recv(fd, buffer, sizeof(buffer), 0);
+		if (fd == -1){
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+				return;
+			if (errno == EINTR)
+				continue;
+			std::cerr << "accept failed: "
+					  << std::strerror(errno) << std::endl;
+			return;
+		}
 
-// 		if (n > 0) {
-// 			Client& client = _clients[fd];
-// 			client.input.append(buffer, static_cast<std::string::size_type>(n));
+		try	{
+			setNonBlocking(fd);
+			_clients[fd] = Client();
+			addPollFd(fd, POLLIN);
+			queueMessage(fd, ":ircserv NOTICE * :Connected. Send PASS, NICK and USER.");
+		} catch (...) {
+			close(fd);
+			throw;
+		}
+	}
+}
 
-// 			if (client.input.size() > 65536) {
-// 				closeClient(fd);
-// 				return;
-// 			}
+void Server::_handleReadClient(int fd) {
+	char buffer[4096];
 
-// 			processInput(fd);
+	while (true) {
+		ssize_t n = recv(fd, buffer, sizeof(buffer), 0);
 
-// 			if (_clients.find(fd) == _clients.end())
-// 				return;
-// 		} else if (n == 0) {
-// 			closeClient(fd);
-// 			return;
-// 		} else {
-// 			if (errno == EINTR)
-// 				continue;
-// 			if (errno == EAGAIN || errno == EWOULDBLOCK)
-// 				break;
-// 			closeClient(fd);
-// 			return;
-// 		}
-// 	}
-// }
+		if (n > 0) {
+			Client& client = _clients[fd];
+			client.input.append(buffer, static_cast<std::string::size_type>(n));
 
-// void Server::writeClient(int fd) {
-// 	std::map<int, Client>::iterator it = _clients.find(fd);
-// 	if (it == _clients.end())
-// 	return;
+			if (client.input.size() > 65536) {
+				_handleCloseClient(fd);
+				return;
+			}
 
-// 	std::string& out = it->second.output;
+			processInput(fd);
 
-// 	while (!out.empty()) {
-// 		ssize_t n = send(fd, out.data(), out.size(), 0);
+			if (_clients.find(fd) == _clients.end())
+				return;
+		} else if (n == 0) {
+			_handleCloseClient(fd);
+			return;
+		} else {
+			if (errno == EINTR)
+				continue;
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+				break;
+			_handleCloseClient(fd);
+			return;
+		}
+	}
+}
 
-// 		if (n > 0)
-// 			out.erase(0, static_cast<std::string::size_type>(n));
-// 		else if (n == -1 && errno == EINTR)
-// 			continue;
-// 		else if (n == -1 &&
-// 				 (errno == EAGAIN || errno == EWOULDBLOCK))
-// 			break;
-// 		else {
-// 			closeClient(fd);
-// 			return;
-// 		}
-// 	}
+void Server::_handleWriteClient(int fd) {
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end())
+	return;
 
-// 	updatePollEvents(fd);
-// }
+	std::string& out = it->second.output;
 
-// void Server::queueMessage(int fd, const std::string& message) {
-// 	std::map<int, Client>::iterator it = _clients.find(fd);
-// 	if (it == _clients.end())
-// 		return;
+	while (!out.empty()) {
+		ssize_t n = send(fd, out.data(), out.size(), 0);
 
-// 	it->second.output += message;
-// 	it->second.output += "\r\n";
-// 	updatePollEvents(fd);
-// }
+		if (n > 0)
+			out.erase(0, static_cast<std::string::size_type>(n));
+		else if (n == -1 && errno == EINTR)
+			continue;
+		else if (n == -1 &&
+				 (errno == EAGAIN || errno == EWOULDBLOCK))
+			break;
+		else {
+			_handleCloseClient(fd);
+			return;
+		}
+	}
 
-// void Server::closeClient(int fd) {
-// 	std::map<int, Client>::iterator it = _clients.find(fd);
-// 	if (it == _clients.end())
-// 		return;
+	updatePollFd(fd);
+}
 
+void Server::queueMessage(int fd, const std::string& message) {
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end())
+		return;
 
-// for (std::map<std::string, Channel>::iterator ch = _channels.begin();
-// 	 ch != _channels.end(); )
-// {
-// 	ch->second.members.erase(fd);
-// 	ch->second.operators.erase(fd);
-// 	ch->second.invited.erase(fd);
+	it->second.output += message;
+	it->second.output += "\r\n";
+	updatePollFd(fd);
+}
 
-// 	if (ch->second.members.empty())
-// 	{
-// 		std::map<std::string, Channel>::iterator doomed = ch++;
-// 		_channels.erase(doomed);
-// 	}
-// 	else
-// 		++ch;
-// }
+void Server::_handleCloseClient(int fd) {
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end())
+		return;
 
-// close(fd);
-// removePollFd(fd);
-// _clients.erase(it);
+	for (std::map<std::string, Channel>::iterator ch = _channels.begin(); ch != _channels.end();) {
+		ch->second.members.erase(fd);
+		ch->second.operators.erase(fd);
+		ch->second.invited.erase(fd);
 
+		if (ch->second.members.empty())	{
+			std::map<std::string, Channel>::iterator doomed = ch++;
+			_channels.erase(doomed);
+		} else 
+			++ch;
+	}
 
-// }
+	close(fd);
+	removePollFd(fd);
+	_clients.erase(it);
+}
 
-// void Server::processInput(int fd)
-// {
-// std::map<int, Client>::iterator it = _clients.find(fd);
-// if (it == _clients.end())
-// return;
+void Server::processInput(int fd) {
 
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end())
+		return;
 
-// std::string& input = it->second.input;
-// std::string::size_type pos;
+	std::string& input = it->second.input;
+	std::string::size_type pos;
 
-// while ((pos = input.find('\n')) != std::string::npos)
-// {
-// 	std::string line = input.substr(0, pos);
-// 	input.erase(0, pos + 1);
+	while ((pos = input.find('\n')) != std::string::npos) {
+		std::string line = input.substr(0, pos);
+		input.erase(0, pos + 1);
 
-// 	if (!line.empty() && line[line.size() - 1] == '\r')
-// 		line.erase(line.size() - 1);
+		if (!line.empty() && line[line.size() - 1] == '\r')
+			line.erase(line.size() - 1);
 
-// 	if (!line.empty())
-// 		handleCommand(fd, line);
+		if (!line.empty())
+			//handleCommand(fd, line);
 
-// 	if (_clients.find(fd) == _clients.end())
-// 		return;
-// }
+		if (_clients.find(fd) == _clients.end())
+			return;
+	}
+}
 
-
-// }
-
-// /* -------------------------------------------------------------------------- */
-// /* Minimal IRC command handling                                               */
-// /* -------------------------------------------------------------------------- */
-
-// void Server::handleCommand(int fd, const std::string& line)
-// {
+//void Server::handleCommand(int fd, const std::string& line) {
 // std::istringstream stream(line);
 // std::string cmd;
 // stream >> cmd;
@@ -533,6 +526,4 @@ void Server::run() {
 // 	queueMessage(fd, ":ircserv 001 " + c.nick +
 // 				 " :Welcome to the IRC server");
 // }
-
-
 // }
