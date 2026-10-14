@@ -76,6 +76,21 @@ private:
 	// void	queueMessage(int fd, const std::string& message);
 	// void	updatePollEvents(int fd);
 
+	// --- acarranz: modo prueba (TEMPORAL)
+	void fakeClient();                                     // cliente falso por teclado
+	void handleCommand(int fd, const std::string& line);   // parsea + arbol de decisiones
+
+	
+	//COMANDS
+	void cmdPass(int fd, const std::vector<std::string>& args);
+	void cmdNick(int fd, const std::vector<std::string>& args);
+	void cmdUser(int fd, const std::vector<std::string>& args);
+
+
+
+	//UTILS_CMD
+	void tryRegister(int fd);
+
 };
 
 #endif

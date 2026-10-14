@@ -132,7 +132,77 @@ void Server::init() {
 // 	}
 // }
 
+
+
+/* -------------------------------------------------------------------------- */
+/*  CLIENTE FALSO (TEMPORAL) - acarranz                                        */
+/*  Monta un cliente simulado y lee comandos del teclado. Por cada linea       */
+/*  llama a handleCommand(), igual que hara el poll() real con cada cliente.   */
+/*  QUITAR cuando la red este lista: run() volvera a su while(_running).        */
+/* -------------------------------------------------------------------------- */
+void Server::fakeClient() {
+	int fd = 4;                  // id ficticia del cliente de prueba
+	_clients[fd] = Client();     // como no hay accept(), lo creamos a mano
+
+	std::string line;
+	std::cout << "[modo prueba] cliente simulado fd=" << fd
+			  << ". Escribe comandos IRC (Ctrl+D para salir):" << std::endl;
+
+	while (std::getline(std::cin, line)) {
+		if (!line.empty())
+			handleCommand(fd, line);   // <- aqui se conecta cada cliente
+	}
+	std::cout << "[modo prueba] fin." << std::endl;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  handleCommand: parsea la linea y reparte al comando (arbol de decisiones). */
+/*  Esta es la funcion que llamara el poll() real por cada cliente/linea.      */
+/* -------------------------------------------------------------------------- */
+void Server::handleCommand(int fd, const std::string& line) {
+	// ---- parseo ----
+	std::istringstream stream(line);
+	std::string cmd;
+	stream >> cmd;
+	for (std::string::size_type i = 0; i < cmd.size(); ++i)
+		cmd[i] = static_cast<char>(
+			std::toupper(static_cast<unsigned char>(cmd[i])));
+
+	std::vector<std::string> args;
+	std::string token;
+	while (stream >> token) {
+		if (!token.empty() && token[0] == ':') {
+			std::string trailing;
+			std::getline(stream, trailing);
+			args.push_back(token.substr(1) + trailing);
+			break;
+		}
+		args.push_back(token);
+	}
+
+	// ---- arbol de decisiones: segun el comando, llama a tu cmdXxx ----
+	if (cmd == "PASS")
+		cmdPass(fd, args);
+	else if (cmd == "NICK")
+		cmdNick(fd, args);
+	else if (cmd == "USER")
+		cmdUser(fd, args);
+	// else if (cmd == "JOIN")    cmdJoin(fd, args);
+	// else if (cmd == "PRIVMSG") cmdPrivmsg(fd, args);
+	// else if (cmd == "PART")    cmdPart(fd, args);
+	// else if (cmd == "QUIT")    cmdQuit(fd, args);
+	// else if (cmd == "KICK")    cmdKick(fd, args);
+	// else if (cmd == "INVITE")  cmdInvite(fd, args);
+	// else if (cmd == "TOPIC")   cmdTopic(fd, args);
+	// else if (cmd == "MODE")    cmdMode(fd, args);
+	else
+		std::cout << ":ircserv 421 * " << cmd << " :Unknown command" << std::endl;
+}
+
 void Server::run() {
+	fakeClient();   // TEMPORAL: modo prueba por teclado. Quitar con la red real.
+	return;
+
 // 	while (_running) {
 // 		int result = poll(&_pollFds[0], _pollFds.size(), -1);
 

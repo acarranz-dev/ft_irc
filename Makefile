@@ -30,7 +30,7 @@ NAME 			= ircserv
 
 INC_DIR			= inc/
 SRC_DIR			= src/
-SRC				= main.cpp Server.cpp
+SRC				= main.cpp Server.cpp Comands.cpp
 
 OBJ_DIR			= obj/
 OBJ 			= $(patsubst %.cpp, $(OBJ_DIR)%.o, $(SRC))
