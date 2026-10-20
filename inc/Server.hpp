@@ -22,6 +22,7 @@
 
 struct Client {
 	Client();
+	int		fd;
 
 	std::string	nick;
 	std::string	user;
@@ -73,8 +74,22 @@ private:
 	void	_handleWriteClient(int fd);
 	void	_handleCloseClient(int fd);
 	void	processInput(int fd);
+	void	handleCommand(int fd, const std::string& line);
+	void	_sendNumericReply(int fd, const std::string& code, const std::string& msg);
+
 	void	queueMessage(int fd, const std::string& message);
-	//void	handleCommand(int fd, const std::string& line);
+
+	void	cmdPass(Client&, const std::vector<std::string>&);
+	void	cmdNick(Client&, const std::vector<std::string>&);
+	void	cmdUser(Client&, const std::vector<std::string>&);
+	void	cmdJoin(Client&, const std::vector<std::string>&);
+	void	cmdKick(Client&, const std::vector<std::string>&);
+	void	cmdInvite(Client&, const std::vector<std::string>&);
+	void	cmdTopic(Client&, const std::vector<std::string>&);
+	void	cmdPart(Client&, const std::vector<std::string>&);
+	void	cmdMode(Client&, const std::vector<std::string>&);
+	void	cmdPrivmsg(Client&, const std::vector<std::string>&);
+	void	cmdQuit(Client&, const std::vector<std::string>&);
 
 };
 

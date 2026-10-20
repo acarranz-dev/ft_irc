@@ -208,6 +208,7 @@ void Server::_handleNewClient() {
 		try	{
 			setNonBlocking(fd);
 			_clients[fd] = Client();
+			_clients[fd].fd = fd;
 			addPollFd(fd, POLLIN);
 			queueMessage(fd, ":ircserv NOTICE * :Connected. Send PASS, NICK and USER.");
 		} catch (...) {
@@ -325,7 +326,7 @@ void Server::processInput(int fd) {
 			line.erase(line.size() - 1);
 
 		if (!line.empty())
-			//handleCommand(fd, line);
+			handleCommand(fd, line);
 
 		if (_clients.find(fd) == _clients.end())
 			return;
@@ -527,3 +528,51 @@ void Server::processInput(int fd) {
 // 				 " :Welcome to the IRC server");
 // }
 // }
+
+void Server::_sendNumericReply(int fd, const std::string& code, const std::string& msg) {
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end()) return;
+	std::string nick = it->second.nick.empty() ? "*" : it->second.nick;
+	queueMessage(fd, ":ircserv " + code + " " + nick + " " + msg);
+}
+
+void Server::handleCommand(int fd, const std::string& line) {
+	std::istringstream stream(line);
+	std::string cmd;
+	stream >> cmd;
+	for (std::string::size_type i = 0; i < cmd.size(); ++i)
+		cmd[i] = static_cast<char>(std::toupper(static_cast<unsigned char>(cmd[i])));
+
+	std::vector<std::string> args;
+	std::string token;
+	while (stream >> token) {
+		if (!token.empty() && token[0] == ':') {
+			std::string trailing;
+			std::getline(stream, trailing);
+			args.push_back(token.substr(1) + trailing);
+			break;
+		}
+		args.push_back(token);
+	}
+	Client& c = _clients[fd];
+
+	if (cmd == "PASS") cmdPass(c, args);
+	else if (cmd == "NICK") cmdNick(c, args);
+	else if (cmd == "USER") cmdUser(c, args);
+	else if (cmd == "JOIN") cmdJoin(c, args);
+	else if (cmd == "PART") cmdPart(c, args);
+	else if (cmd == "TOPIC") cmdTopic(c, args);
+	else if (cmd == "KICK") cmdKick(c, args);
+	else if (cmd == "INVITE") cmdInvite(c, args);
+	else if (cmd == "MODE") cmdMode(c, args);
+	else if (cmd == "PRIVMSG") cmdPrivmsg(c, args);
+	else if (cmd == "QUIT") cmdQuit(c, args);
+
+	/*
+	 * Complete registration once PASS, NICK and USER have arrived.
+	 */
+	if (!c.registered && c.passOK && !c.nick.empty() && !c.user.empty()) {
+		c.registered = true;
+		queueMessage(fd, ":ircserv 001 " + c.nick + " :Welcome to the IRC server");
+	}
+}
