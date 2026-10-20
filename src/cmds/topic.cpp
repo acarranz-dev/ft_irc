@@ -14,19 +14,19 @@
 
 void Server::cmdTopic(Client& c, const std::vector<std::string>& args) {
 	if (args.empty()) {
-		_sendNumericReply(c.fd, "461", "TOPIC :Not enough parameters");
+		sendNumericReply(c.fd, "461", "TOPIC :Not enough parameters");
 		return;
 	}
 	std::map<std::string, Channel>::iterator ch = _channels.find(args[0]);
 	if (ch == _channels.end()) {
-		_sendNumericReply(c.fd, "403", args[0] + " :No such channel");
+		sendNumericReply(c.fd, "403", args[0] + " :No such channel");
 		return;
 	}
 	if (args.size() == 1) {
 		if (ch->second.topic.empty())
-			_sendNumericReply(c.fd, "331", args[0] + " :No topic is set");
+			sendNumericReply(c.fd, "331", args[0] + " :No topic is set");
 		else
-			_sendNumericReply(c.fd, "332", args[0] + " :" + ch->second.topic);
+			sendNumericReply(c.fd, "332", args[0] + " :" + ch->second.topic);
 		return;
 	}
 	ch->second.topic = args[1];

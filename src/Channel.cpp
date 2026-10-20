@@ -12,11 +12,10 @@
 
 #include "Channel.hpp"
 
-Channel::Channel(const std::string& channelName)
-    : name(channelName),
-      inviteOnly(false),
+Channel::Channel()
+    : inviteOnly(false),
       topicOps(false),
-      limit(0) {
+      userLimit(0) {
 }
 
 bool Channel::hasMember(int fd) const {
@@ -24,7 +23,7 @@ bool Channel::hasMember(int fd) const {
 }
 
 bool Channel::isOperator(int fd) const {
-    return ops.find(fd) != ops.end();
+    return operators.find(fd) != operators.end();
 }
 
 bool Channel::isInvited(int fd) const {
@@ -37,16 +36,16 @@ void Channel::addMember(int fd) {
 
 void Channel::removeMember(int fd) {
     members.erase(fd);
-    ops.erase(fd);
+    operators.erase(fd);
     invited.erase(fd);
 }
 
 void Channel::addOperator(int fd) {
-    if (hasMember(fd)) ops.insert(fd);
+    if (hasMember(fd)) operators.insert(fd);
 }
 
 void Channel::removeOperator(int fd) {
-    ops.erase(fd);
+    operators.erase(fd);
 }
 
 void Channel::invite(int fd) {
@@ -58,7 +57,7 @@ void Channel::removeInvitation(int fd) {
 }
 
 bool Channel::isFull() const {
-    return (limit > 0 && members.size() >= static_cast<std::size_t>(limit));
+    return (userLimit > 0 && members.size() >= static_cast<std::size_t>(userLimit));
 }
 
 bool Channel::canJoin(int fd, const std::string& suppliedKey) const {

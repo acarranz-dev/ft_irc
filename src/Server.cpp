@@ -6,9 +6,10 @@
 /*   By: sarodrig <sarodrig@student.42barcelona.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/02 22:15:06 by sarodrig          #+#    #+#             */
-/*   Updated: 2026/10/02 22:15:06 by sarodrig         ###   ########.fr       */
+/*   Updated: 2026/10/20 20:42:43 by sarodrig         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
+
 #include "Server.hpp"
 
 #include <iostream>
@@ -27,20 +28,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-/* -------------------------------------------------------------------------- */
-/* Client and Channel                                                         */
-/* -------------------------------------------------------------------------- */
-Client::Client() 
-: passOK(false), registered(false) {
-}
-
-Channel::Channel()
-: inviteOnly(false), topicOps(false), userLimit(0) {
-}
-
-/* -------------------------------------------------------------------------- */
-/* Server                                                                     */
-/* -------------------------------------------------------------------------- */
 Server::Server(int port, const std::string& password)
 : _port(port), _password(password), _socketFd(-1), _running(false) {}
 
@@ -167,7 +154,7 @@ void Server::run() {
 
 			if (fd == _socketFd) {
 				if (events & POLLIN)
-					_handleNewClient();
+					handleNewClient();
 				continue;
 			}
 
@@ -175,23 +162,23 @@ void Server::run() {
 				continue;
 
 			if (events & (POLLERR | POLLHUP | POLLNVAL)) {
-				_handleCloseClient(fd);
+				handleCloseClient(fd);
 				continue;
 			}
 
 			if (events & POLLIN) {
-				_handleReadClient(fd);
+				handleReadClient(fd);
 				if (_clients.find(fd) == _clients.end())
 					continue;
 			}
 
 			if (events & POLLOUT)
-				_handleWriteClient(fd);
+				handleWriteClient(fd);
 		}
 	}
 }
 
-void Server::_handleNewClient() {
+void Server::handleNewClient() {
 	while (true) {
 		int fd = accept(_socketFd, NULL, NULL);
 
@@ -207,8 +194,7 @@ void Server::_handleNewClient() {
 
 		try	{
 			setNonBlocking(fd);
-			_clients[fd] = Client();
-			_clients[fd].fd = fd;
+			_clients[fd] = Client(fd);
 			addPollFd(fd, POLLIN);
 			queueMessage(fd, ":ircserv NOTICE * :Connected. Send PASS, NICK and USER.");
 		} catch (...) {
@@ -218,7 +204,7 @@ void Server::_handleNewClient() {
 	}
 }
 
-void Server::_handleReadClient(int fd) {
+void Server::handleReadClient(int fd) {
 	char buffer[4096];
 
 	while (true) {
@@ -229,7 +215,7 @@ void Server::_handleReadClient(int fd) {
 			client.input.append(buffer, static_cast<std::string::size_type>(n));
 
 			if (client.input.size() > 65536) {
-				_handleCloseClient(fd);
+				handleCloseClient(fd);
 				return;
 			}
 
@@ -238,20 +224,20 @@ void Server::_handleReadClient(int fd) {
 			if (_clients.find(fd) == _clients.end())
 				return;
 		} else if (n == 0) {
-			_handleCloseClient(fd);
+			handleCloseClient(fd);
 			return;
 		} else {
 			if (errno == EINTR)
 				continue;
 			if (errno == EAGAIN || errno == EWOULDBLOCK)
 				break;
-			_handleCloseClient(fd);
+			handleCloseClient(fd);
 			return;
 		}
 	}
 }
 
-void Server::_handleWriteClient(int fd) {
+void Server::handleWriteClient(int fd) {
 	std::map<int, Client>::iterator it = _clients.find(fd);
 	if (it == _clients.end())
 	return;
@@ -269,7 +255,7 @@ void Server::_handleWriteClient(int fd) {
 				 (errno == EAGAIN || errno == EWOULDBLOCK))
 			break;
 		else {
-			_handleCloseClient(fd);
+			handleCloseClient(fd);
 			return;
 		}
 	}
@@ -287,7 +273,7 @@ void Server::queueMessage(int fd, const std::string& message) {
 	updatePollFd(fd);
 }
 
-void Server::_handleCloseClient(int fd) {
+void Server::handleCloseClient(int fd) {
 	std::map<int, Client>::iterator it = _clients.find(fd);
 	if (it == _clients.end())
 		return;
@@ -333,203 +319,7 @@ void Server::processInput(int fd) {
 	}
 }
 
-//void Server::handleCommand(int fd, const std::string& line) {
-// std::istringstream stream(line);
-// std::string cmd;
-// stream >> cmd;
-
-
-// for (std::string::size_type i = 0; i < cmd.size(); ++i)
-// 	cmd[i] = static_cast<char>(
-// 		std::toupper(static_cast<unsigned char>(cmd[i])));
-
-// std::vector<std::string> args;
-// std::string token;
-
-// while (stream >> token)
-// {
-// 	if (!token.empty() && token[0] == ':')
-// 	{
-// 		std::string trailing;
-// 		std::getline(stream, trailing);
-// 		args.push_back(token.substr(1) + trailing);
-// 		break;
-// 	}
-// 	args.push_back(token);
-// }
-
-// Client& c = _clients[fd];
-
-// if (cmd == "QUIT")
-// {
-// 	closeClient(fd);
-// 	return;
-// }
-// else if (cmd == "PASS")
-// {
-// 	if (args.empty())
-// 		queueMessage(fd, ":ircserv 461 * PASS :Not enough parameters");
-// 	else if (args[0] != _password)
-// 		queueMessage(fd, ":ircserv 464 * :Password incorrect");
-// 	else
-// 		c.passOK = true;
-// }
-// else if (cmd == "NICK")
-// {
-// 	if (args.empty())
-// 	{
-// 		queueMessage(fd, ":ircserv 431 * :No nickname given");
-// 		return;
-// 	}
-
-// 	for (std::map<int, Client>::const_iterator it = _clients.begin();
-// 		 it != _clients.end(); ++it)
-// 	{
-// 		if (it->first != fd && it->second.nick == args[0])
-// 		{
-// 			queueMessage(fd, ":ircserv 433 * " + args[0] +
-// 						 " :Nickname is already in use");
-// 			return;
-// 		}
-// 	}
-
-// 	c.nick = args[0];
-// }
-// else if (cmd == "USER")
-// {
-// 	if (args.size() < 4)
-// 	{
-// 		queueMessage(fd, ":ircserv 461 * USER :Not enough parameters");
-// 		return;
-// 	}
-// 	c.user = args[0];
-// }
-// else if (cmd == "PING")
-// {
-// 	if (!args.empty())
-// 		queueMessage(fd, ":ircserv PONG ircserv :" + args[0]);
-// }
-// else if (cmd == "JOIN")
-// {
-// 	if (!c.registered)
-// 	{
-// 		queueMessage(fd, ":ircserv 451 * :You have not registered");
-// 		return;
-// 	}
-// 	if (args.empty())
-// 	{
-// 		queueMessage(fd, ":ircserv 461 " + c.nick +
-// 					 " JOIN :Not enough parameters");
-// 		return;
-// 	}
-
-// 	std::string name = args[0];
-// 	if (name.empty() || name[0] != '#')
-// 	{
-// 		queueMessage(fd, ":ircserv 476 " + c.nick + " " + name +
-// 					 " :Bad Channel Mask");
-// 		return;
-// 	}
-
-// 	Channel& ch = _channels[name];
-// 	if (ch.members.insert(fd).second && ch.members.size() == 1)
-// 		ch.operators.insert(fd);
-
-// 	std::string prefix = ":" + c.nick + "!" + c.user + "@localhost";
-// 	for (std::set<int>::const_iterator m = ch.members.begin();
-// 		 m != ch.members.end(); ++m)
-// 		queueMessage(*m, prefix + " JOIN " + name);
-
-// 	if (!ch.topic.empty())
-// 		queueMessage(fd, ":ircserv 332 " + c.nick + " " +
-// 					 name + " :" + ch.topic);
-
-// 	std::ostringstream names;
-// 	for (std::set<int>::const_iterator m = ch.members.begin();
-// 		 m != ch.members.end(); ++m)
-// 	{
-// 		std::map<int, Client>::const_iterator member = _clients.find(*m);
-// 		if (member != _clients.end())
-// 		{
-// 			if (m != ch.members.begin())
-// 				names << " ";
-// 			if (ch.operators.count(*m))
-// 				names << "@";
-// 			names << member->second.nick;
-// 		}
-// 	}
-// 	queueMessage(fd, ":ircserv 353 " + c.nick + " = " +
-// 				 name + " :" + names.str());
-// 	queueMessage(fd, ":ircserv 366 " + c.nick + " " +
-// 				 name + " :End of NAMES list");
-// }
-// else if (cmd == "PRIVMSG")
-// {
-// 	if (!c.registered)
-// 	{
-// 		queueMessage(fd, ":ircserv 451 * :You have not registered");
-// 		return;
-// 	}
-// 	if (args.size() < 2 || args[0].empty())
-// 	{
-// 		queueMessage(fd, ":ircserv 461 " + c.nick +
-// 					 " PRIVMSG :Not enough parameters");
-// 		return;
-// 	}
-
-// 	std::string prefix = ":" + c.nick + "!" + c.user + "@localhost";
-// 	std::string message = prefix + " PRIVMSG " +
-// 						  args[0] + " :" + args[1];
-
-// 	if (args[0][0] == '#')
-// 	{
-// 		std::map<std::string, Channel>::iterator ch =
-// 			_channels.find(args[0]);
-// 		if (ch == _channels.end() || !ch->second.members.count(fd))
-// 		{
-// 			queueMessage(fd, ":ircserv 404 " + c.nick + " " +
-// 						 args[0] + " :Cannot send to channel");
-// 			return;
-// 		}
-// 		for (std::set<int>::const_iterator m = ch->second.members.begin();
-// 			 m != ch->second.members.end(); ++m)
-// 			if (*m != fd)
-// 				queueMessage(*m, message);
-// 	}
-// 	else
-// 	{
-// 		bool found = false;
-// 		for (std::map<int, Client>::const_iterator it = _clients.begin();
-// 			 it != _clients.end(); ++it)
-// 		{
-// 			if (it->second.nick == args[0])
-// 			{
-// 				queueMessage(it->first, message);
-// 				found = true;
-// 				break;
-// 			}
-// 		}
-// 		if (!found)
-// 			queueMessage(fd, ":ircserv 401 " + c.nick + " " +
-// 						 args[0] + " :No such nick");
-// 	}
-// }
-// else if (!cmd.empty())
-// 	queueMessage(fd, ":ircserv 421 " + c.nick + " " +
-// 				 cmd + " :Unknown command");
-
-// /*
-//  * Complete registration once PASS, NICK and USER have arrived.
-//  */
-// if (!c.registered && c.passOK && !c.nick.empty() && !c.user.empty())
-// {
-// 	c.registered = true;
-// 	queueMessage(fd, ":ircserv 001 " + c.nick +
-// 				 " :Welcome to the IRC server");
-// }
-// }
-
-void Server::_sendNumericReply(int fd, const std::string& code, const std::string& msg) {
+void Server::sendNumericReply(int fd, const std::string& code, const std::string& msg) {
 	std::map<int, Client>::iterator it = _clients.find(fd);
 	if (it == _clients.end()) return;
 	std::string nick = it->second.nick.empty() ? "*" : it->second.nick;

@@ -14,15 +14,15 @@
 
 void Server::cmdPass(Client& c, const std::vector<std::string>& args) {
 	if (c.registered) {
-		_sendNumericReply(c.fd, "462", ":You may not reregister");
+		sendNumericReply(c.fd, "462", ":You may not reregister");
 		return;
 	}
 	if (args.empty()) {
-		_sendNumericReply(c.fd, "461", "PASS :Not enough parameters");
+		sendNumericReply(c.fd, "461", "PASS :Not enough parameters");
 		return;
 	}
 	if (args[0] != _password) {
-		_sendNumericReply(c.fd, "464", ":Password incorrect");
+		sendNumericReply(c.fd, "464", ":Password incorrect");
 		return;
 	}
 	c.passOK = true;

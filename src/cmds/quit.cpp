@@ -23,5 +23,5 @@ void Server::cmdQuit(Client& c, const std::vector<std::string>& args) {
 				queueMessage(*m, prefix + " QUIT :" + msg);
 		}
 	}
-	_handleCloseClient(c.fd);
+	handleCloseClient(c.fd);
 }

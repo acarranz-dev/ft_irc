@@ -14,21 +14,21 @@
 
 void Server::cmdKick(Client& c, const std::vector<std::string>& args) {
 	if (!c.registered) {
-		_sendNumericReply(c.fd, "451", ":You have not registered");
+		sendNumericReply(c.fd, "451", ":You have not registered");
 		return;
 	}
 	if (args.size() < 2) {
-		_sendNumericReply(c.fd, "461", "KICK :Not enough parameters");
+		sendNumericReply(c.fd, "461", "KICK :Not enough parameters");
 		return;
 	}
 	std::string chName = args[0];
 	std::map<std::string, Channel>::iterator ch = _channels.find(chName);
 	if (ch == _channels.end()) {
-		_sendNumericReply(c.fd, "403", chName + " :No such channel");
+		sendNumericReply(c.fd, "403", chName + " :No such channel");
 		return;
 	}
 	if (!ch->second.operators.count(c.fd)) {
-		_sendNumericReply(c.fd, "482", chName + " :You are not channel operator");
+		sendNumericReply(c.fd, "482", chName + " :You are not channel operator");
 		return;
 	}
 	std::string target = args[1];
@@ -42,5 +42,5 @@ void Server::cmdKick(Client& c, const std::vector<std::string>& args) {
 			return;
 		}
 	}
-	_sendNumericReply(c.fd, "441", target + " " + chName + " :They aren't on that channel");
+	sendNumericReply(c.fd, "441", target + " " + chName + " :They aren't on that channel");
 }

@@ -11,27 +11,23 @@
 /* ************************************************************************** */
 
 #ifndef CHANNEL_HPP
-#define CHANNEL_HPP
+# define CHANNEL_HPP
 
 #include <string>
 #include <set>
-#include <cstddef>
 
 class Channel {
 public:
-    std::string name;
-    std::string topic;
-    std::string key;
+    Channel();
 
     std::set<int> members;
-    std::set<int> ops;
+    std::set<int> operators;
     std::set<int> invited;
-
+    std::string topic;
+    std::string key;
     bool inviteOnly;
     bool topicOps;
-    int limit;
-
-    explicit Channel(const std::string& channelName);
+    int userLimit;
 
     bool hasMember(int fd) const;
     bool isOperator(int fd) const;

@@ -15,21 +15,21 @@
 
 void Server::cmdMode(Client& c, const std::vector<std::string>& args) {
 	if (!c.registered) {
-		_sendNumericReply(c.fd, "451", ":You have not registered");
+		sendNumericReply(c.fd, "451", ":You have not registered");
 		return;
 	}
 	if (args.empty()) {
-		_sendNumericReply(c.fd, "461", "MODE :Not enough parameters");
+		sendNumericReply(c.fd, "461", "MODE :Not enough parameters");
 		return;
 	}
 	std::string chName = args[0];
 	std::map<std::string, Channel>::iterator ch = _channels.find(chName);
 	if (ch == _channels.end()) {
-		_sendNumericReply(c.fd, "403", chName + " :No such channel");
+		sendNumericReply(c.fd, "403", chName + " :No such channel");
 		return;
 	}
 	if (!ch->second.operators.count(c.fd)) {
-		_sendNumericReply(c.fd, "482", chName + " :You are not channel operator");
+		sendNumericReply(c.fd, "482", chName + " :You are not channel operator");
 		return;
 	}
 	if (args.size() < 2) {
@@ -41,7 +41,7 @@ void Server::cmdMode(Client& c, const std::vector<std::string>& args) {
 		std::ostringstream oss;
 		oss << ch->second.userLimit;
 		cur += "l" + oss.str();
-		_sendNumericReply(c.fd, "324", chName + " " + cur);
+		sendNumericReply(c.fd, "324", chName + " " + cur);
 		return;
 	}
 	std::string flags = args[1];

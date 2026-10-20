@@ -14,30 +14,18 @@
 #define CLIENT_HPP
 
 #include <string>
-#include <set>
 
 class Client {
 public:
-    int fd;
+	Client(int fd = -1);
 
-    std::string input;
-    std::string out;
-
-    std::string nick;
-    std::string user;
-    std::string real;
-
-    bool pass;
-    bool registered;
-
-    std::set<std::string> channels;
-
-    explicit Client(int socketFd);
-
-    std::string mask() const;
-    bool hasChannel(const std::string& channel) const;
-    void addChannel(const std::string& channel);
-    void removeChannel(const std::string& channel);
+	int			fd;
+	std::string	nick;
+	std::string	user;
+	std::string	input;
+	std::string	output;
+	bool		passOK;
+	bool		registered;
 };
 
 #endif

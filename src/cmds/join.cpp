@@ -15,16 +15,16 @@
 
 void Server::cmdJoin(Client& c, const std::vector<std::string>& args) {
 	if (!c.registered) {
-		_sendNumericReply(c.fd, "451", ":You have not registered");
+		sendNumericReply(c.fd, "451", ":You have not registered");
 		return;
 	}
 	if (args.empty()) {
-		_sendNumericReply(c.fd, "461", "JOIN :Not enough parameters");
+		sendNumericReply(c.fd, "461", "JOIN :Not enough parameters");
 		return;
 	}
 	std::string name = args[0];
 	if (name.empty() || name[0] != '#') {
-		_sendNumericReply(c.fd, "476", name + " :Bad Channel Mask");
+		sendNumericReply(c.fd, "476", name + " :Bad Channel Mask");
 		return;
 	}
 	Channel& ch = _channels[name];

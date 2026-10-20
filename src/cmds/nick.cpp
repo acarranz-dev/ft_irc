@@ -14,12 +14,12 @@
 
 void Server::cmdNick(Client& c, const std::vector<std::string>& args) {
 	if (args.empty() || args[0].empty()) {
-		_sendNumericReply(c.fd, "431", ":No nickname given");
+		sendNumericReply(c.fd, "431", ":No nickname given");
 		return;
 	}
 	for (std::map<int, Client>::const_iterator it = _clients.begin(); it != _clients.end(); ++it) {
 		if (it->first != c.fd && it->second.nick == args[0]) {
-			_sendNumericReply(c.fd, "433", args[0] + " :Nickname is already in use");
+			sendNumericReply(c.fd, "433", args[0] + " :Nickname is already in use");
 			return;
 		}
 	}

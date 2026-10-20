@@ -14,11 +14,11 @@
 
 void Server::cmdPrivmsg(Client& c, const std::vector<std::string>& args) {
 	if (!c.registered) {
-		_sendNumericReply(c.fd, "451", ":You have not registered");
+		sendNumericReply(c.fd, "451", ":You have not registered");
 		return;
 	}
 	if (args.size() < 2 || args[0].empty()) {
-		_sendNumericReply(c.fd, "461", "PRIVMSG :Not enough parameters");
+		sendNumericReply(c.fd, "461", "PRIVMSG :Not enough parameters");
 		return;
 	}
 	std::string msg = args[1];
@@ -26,7 +26,7 @@ void Server::cmdPrivmsg(Client& c, const std::vector<std::string>& args) {
 	if (args[0][0] == '#') {
 		std::map<std::string, Channel>::iterator ch = _channels.find(args[0]);
 		if (ch == _channels.end() || !ch->second.members.count(c.fd)) {
-			_sendNumericReply(c.fd, "404", args[0] + " :Cannot send to channel");
+			sendNumericReply(c.fd, "404", args[0] + " :Cannot send to channel");
 			return;
 		}
 		for (std::set<int>::const_iterator m = ch->second.members.begin(); m != ch->second.members.end(); ++m) {
@@ -44,5 +44,5 @@ void Server::cmdPrivmsg(Client& c, const std::vector<std::string>& args) {
 		break;
 	}
 	if (!found)
-		_sendNumericReply(c.fd, "401", args[0] + " :No such nick");
+		sendNumericReply(c.fd, "401", args[0] + " :No such nick");
 }
