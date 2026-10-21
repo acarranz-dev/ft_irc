@@ -6,10 +6,9 @@
 /*   By: sarodrig <sarodrig@student.42barcelona.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/02 22:08:08 by sarodrig         #+#    #+#             */
-/*   Updated: 2026/10/02 22:08:08 by sarodrig         ###   ########.fr       */
+/*   Updated: 2026/10/20 19:32:48 by sarodrig         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
-//acrranz 
 
 #ifndef SERVER_HPP
 # define SERVER_HPP
@@ -20,29 +19,8 @@
 # include <vector>
 # include <poll.h>
 
-struct Client {
-	Client();
-
-	std::string	nick;
-	std::string	user;
-	std::string	input;
-	std::string	output;
-	bool		passOK;
-	bool		registered;
-};
-
-struct Channel {
-	Channel();
-
-	std::set<int>	members;
-	std::set<int>	operators;
-	std::set<int>	invited;
-	std::string		topic;
-	std::string		key;
-	bool			inviteOnly;
-	bool			topicOps;
-	int				userLimit;
-};
+# include "Client.hpp"
+# include "Channel.hpp"
 
 class Server {
 	public:
@@ -53,43 +31,38 @@ class Server {
 	void	run();
 
 private:
-	// Server(const Server&);
-	// Server& operator=(const Server&);
-
 	int						_port;
-	int						_serverFd;
 	std::string				_password;
+	int						_socketFd;
 	bool					_running;
+	std::vector<pollfd>		_pollFds;
 	std::map<int, Client>	_clients;
 	std::map<std::string, Channel> _channels;
-	std::vector<pollfd>		_pollFds;
 
-	// void	setNonBlocking(int fd);
-	// void	addPollFd(int fd, short events);
-	// void	removePollFd(int fd);
-	// void	acceptClient();
-	// void	readClient(int fd);
-	// void	writeClient(int fd);
-	// void	closeClient(int fd);
-	// void	processInput(int fd);
-	// void	handleCommand(int fd, const std::string& line);
-	// void	queueMessage(int fd, const std::string& message);
-	// void	updatePollEvents(int fd);
+	void	setNonBlocking(int fd); 
+	void	addPollFd(int fd, short events);
+	void	removePollFd(int fd);
+	void	updatePollFd(int fd);
+	void	handleNewClient();
+	void	handleReadClient(int fd);
+	void	handleWriteClient(int fd);
+	void	handleCloseClient(int fd);
+	void	processInput(int fd);
+	void	handleCommand(int fd, const std::string& line);
+	void	sendNumericReply(int fd, const std::string& code, const std::string& msg);
+	void	queueMessage(int fd, const std::string& message);
 
-	// --- acarranz: modo prueba (TEMPORAL)
-	void fakeClient();                                     // cliente falso por teclado
-	void handleCommand(int fd, const std::string& line);   // parsea + arbol de decisiones
-
-	
-	//COMANDS
-	void cmdPass(int fd, const std::vector<std::string>& args);
-	void cmdNick(int fd, const std::vector<std::string>& args);
-	void cmdUser(int fd, const std::vector<std::string>& args);
-
-
-
-	//UTILS_CMD
-	void tryRegister(int fd);
+	void	cmdPass(Client&, const std::vector<std::string>&);
+	void	cmdNick(Client&, const std::vector<std::string>&);
+	void	cmdUser(Client&, const std::vector<std::string>&);
+	void	cmdJoin(Client&, const std::vector<std::string>&);
+	void	cmdKick(Client&, const std::vector<std::string>&);
+	void	cmdInvite(Client&, const std::vector<std::string>&);
+	void	cmdTopic(Client&, const std::vector<std::string>&);
+	void	cmdPart(Client&, const std::vector<std::string>&);
+	void	cmdMode(Client&, const std::vector<std::string>&);
+	void	cmdPrivmsg(Client&, const std::vector<std::string>&);
+	void	cmdQuit(Client&, const std::vector<std::string>&);
 
 };
 

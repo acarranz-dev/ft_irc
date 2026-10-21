@@ -30,18 +30,29 @@ NAME 			= ircserv
 
 INC_DIR			= inc/
 SRC_DIR			= src/
-SRC				= main.cpp Server.cpp Comands.cpp
+SRC				= main.cpp Server.cpp Client.cpp Channel.cpp
+CMD_SRC			= cmds/pass.cpp cmds/nick.cpp cmds/user.cpp \
+				  cmds/join.cpp cmds/part.cpp cmds/topic.cpp \
+				  cmds/kick.cpp cmds/invite.cpp cmds/mode.cpp \
+				  cmds/privmsg.cpp cmds/quit.cpp
 
 OBJ_DIR			= obj/
-OBJ 			= $(patsubst %.cpp, $(OBJ_DIR)%.o, $(SRC))
+OBJ 			= $(patsubst %.cpp, $(OBJ_DIR)%.o, $(SRC) $(CMD_SRC))
 DEP 			= $(OBJ:.o=.d)
 
-TOTAL_FILES		= $(words $(SRC))
+TOTAL_FILES		= $(words $(SRC) $(CMD_SRC))
 CURRENT			= 0
 
 
 # ***** FILE TARGETS ********************************************************* #
 -include $(DEP)
+
+$(OBJ_DIR)cmds/%.o : $(SRC_DIR)cmds/%.cpp Makefile
+	@$(eval CURRENT=$(shell echo $$(($(CURRENT)+1))))
+	@printf "\r$(BLUE)>>> [%d/%d] Compiling %-20s$(NO_COLOR)" $(CURRENT) $(TOTAL_FILES) "$(@F)"
+	@mkdir -p $(OBJ_DIR)cmds
+	@$(CXX) $(CXXFLAGS) -I$(INC_DIR) -c $< -o $@ \
+	|| (printf "\n$(WHITE)---$(FAIL)$(RED)Compilation of $@ failed$(WHITE)---\n$(NO_COLOR)" && exit 1)
 
 $(OBJ_DIR)%.o : $(SRC_DIR)%.cpp Makefile
 	@$(eval CURRENT=$(shell echo $$(($(CURRENT)+1))))
