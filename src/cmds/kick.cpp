@@ -27,20 +27,26 @@ void Server::cmdKick(Client& c, const std::vector<std::string>& args) {
 		sendNumericReply(c.fd, "403", chName + " :No such channel");
 		return;
 	}
-	if (!ch->second.operators.count(c.fd)) {
-		sendNumericReply(c.fd, "482", chName + " :You are not channel operator");
+	if (!ch->second.hasMember(c.fd)) {
+		sendNumericReply(c.fd, "442", chName + " :You're not on that channel");
 		return;
 	}
-	std::string target = args[1];
-	for (std::set<int>::const_iterator m = ch->second.members.begin(); m != ch->second.members.end(); ++m) {
-		std::map<int, Client>::iterator it = _clients.find(*m);
-		if (it != _clients.end() && it->second.nick == target) {
-			ch->second.members.erase(*m);
-			ch->second.operators.erase(*m);
-			std::string reason = args.size() > 2 ? " :" + args[2] : "";
-			queueMessage(*m, ":" + it->second.nick + "!" + it->second.user + "@localhost KICK " + chName + " " + target + reason);
-			return;
-		}
+	if (!ch->second.isOperator(c.fd)) {
+		sendNumericReply(c.fd, "482", chName + " :You're not channel operator");
+		return;
 	}
-	sendNumericReply(c.fd, "441", target + " " + chName + " :They aren't on that channel");
+	std::string reason = args.size() > 2 ? args[2] : c.nick;
+	std::vector<std::string> targets = splitComma(args[1]);
+
+	for (std::vector<std::string>::size_type i = 0; i < targets.size(); ++i) {
+		int targetFd = findFdByNick(targets[i]);
+		if (targetFd == -1 || !ch->second.hasMember(targetFd)) {
+			sendNumericReply(c.fd, "441", targets[i] + " " + chName + " :They aren't on that channel");
+			continue;
+		}
+		broadcast(ch->second, prefix(c) + " KICK " + chName + " " + targets[i] + " :" + reason, -1);
+		ch->second.removeMember(targetFd);
+	}
+	if (ch->second.members.empty())
+		_channels.erase(ch);
 }

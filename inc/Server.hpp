@@ -51,6 +51,12 @@ private:
 	void	handleCommand(int fd, const std::string& line);
 	void	sendNumericReply(int fd, const std::string& code, const std::string& msg);
 	void	queueMessage(int fd, const std::string& message);
+	void	quitClient(int fd, const std::string& reason);
+
+	std::string	prefix(const Client& c) const;
+	int			findFdByNick(const std::string& nick) const;
+	void		broadcast(const Channel& ch, const std::string& msg, int exceptFd);
+	std::vector<std::string>	splitComma(const std::string& s) const;
 
 	void	cmdPass(Client&, const std::vector<std::string>&);
 	void	cmdNick(Client&, const std::vector<std::string>&);
@@ -63,6 +69,7 @@ private:
 	void	cmdMode(Client&, const std::vector<std::string>&);
 	void	cmdPrivmsg(Client&, const std::vector<std::string>&);
 	void	cmdQuit(Client&, const std::vector<std::string>&);
+	void	cmdPing(Client&, const std::vector<std::string>&);
 
 };
 

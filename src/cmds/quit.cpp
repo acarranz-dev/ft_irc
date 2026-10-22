@@ -13,15 +13,6 @@
 #include "Server.hpp"
 
 void Server::cmdQuit(Client& c, const std::vector<std::string>& args) {
-	std::string msg = args.empty() ? "Client Quit" : args[0];
-	std::string prefix = ":" + c.nick + "!" + c.user + "@localhost";
-	for (std::map<std::string, Channel>::iterator ch = _channels.begin(); ch != _channels.end(); ++ch) {
-		if (!ch->second.members.count(c.fd))
-			continue;
-		for (std::set<int>::const_iterator m = ch->second.members.begin(); m != ch->second.members.end(); ++m) {
-			if (*m != c.fd)
-				queueMessage(*m, prefix + " QUIT :" + msg);
-		}
-	}
-	handleCloseClient(c.fd);
+	std::string reason = args.empty() ? "Client Quit" : args[0];
+	quitClient(c.fd, "Quit: " + reason);
 }

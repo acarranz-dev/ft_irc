@@ -34,7 +34,7 @@ SRC				= main.cpp Server.cpp Client.cpp Channel.cpp
 CMD_SRC			= cmds/pass.cpp cmds/nick.cpp cmds/user.cpp \
 				  cmds/join.cpp cmds/part.cpp cmds/topic.cpp \
 				  cmds/kick.cpp cmds/invite.cpp cmds/mode.cpp \
-				  cmds/privmsg.cpp cmds/quit.cpp
+				  cmds/privmsg.cpp cmds/quit.cpp cmds/ping.cpp
 
 OBJ_DIR			= obj/
 OBJ 			= $(patsubst %.cpp, $(OBJ_DIR)%.o, $(SRC) $(CMD_SRC))

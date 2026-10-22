@@ -43,13 +43,8 @@ Server::~Server() {
 }
 
 void Server::setNonBlocking(int fd) {
-	int flags = fcntl(fd, F_GETFL, 0);
-	
-	if (flags == -1 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1){
-		close(_socketFd);
-		_socketFd = -1;
+	if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
 		throw std::runtime_error("Error setting fcntl() to non-blocking mode.");
-	}
 }
 
 void Server::addPollFd(int fd, short events) {
@@ -162,7 +157,7 @@ void Server::run() {
 				continue;
 
 			if (events & (POLLERR | POLLHUP | POLLNVAL)) {
-				handleCloseClient(fd);
+				quitClient(fd, "Connection closed");
 				continue;
 			}
 
@@ -178,88 +173,70 @@ void Server::run() {
 	}
 }
 
+/*
+ * Each handler does exactly ONE accept/recv/send per poll() event and never
+ * looks at errno afterwards: if there is more data, poll() will report it again.
+ */
 void Server::handleNewClient() {
-	while (true) {
-		int fd = accept(_socketFd, NULL, NULL);
+	int fd = accept(_socketFd, NULL, NULL);
 
-		if (fd == -1){
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
-				return;
-			if (errno == EINTR)
-				continue;
-			std::cerr << "accept failed: "
-					  << std::strerror(errno) << std::endl;
-			return;
-		}
+	if (fd == -1) {
+		std::cerr << "accept() failed" << std::endl;
+		return;
+	}
 
-		try	{
-			setNonBlocking(fd);
-			_clients[fd] = Client(fd);
-			addPollFd(fd, POLLIN);
-			queueMessage(fd, ":ircserv NOTICE * :Connected. Send PASS, NICK and USER.");
-		} catch (...) {
-			close(fd);
-			throw;
-		}
+	try	{
+		setNonBlocking(fd);
+		_clients[fd] = Client(fd);
+		addPollFd(fd, POLLIN);
+		queueMessage(fd, ":ircserv NOTICE * :Connected. Send PASS, NICK and USER.");
+		std::cout << "[+] Client connected (fd " << fd << ")" << std::endl;
+	} catch (const std::exception& e) {
+		/* Drop only this client; the server keeps running */
+		std::cerr << "Rejected client (fd " << fd << "): " << e.what() << std::endl;
+		_clients.erase(fd);
+		removePollFd(fd);
+		close(fd);
 	}
 }
 
 void Server::handleReadClient(int fd) {
 	char buffer[4096];
+	ssize_t n = recv(fd, buffer, sizeof(buffer), 0);
 
-	while (true) {
-		ssize_t n = recv(fd, buffer, sizeof(buffer), 0);
-
-		if (n > 0) {
-			Client& client = _clients[fd];
-			client.input.append(buffer, static_cast<std::string::size_type>(n));
-
-			if (client.input.size() > 65536) {
-				handleCloseClient(fd);
-				return;
-			}
-
-			processInput(fd);
-
-			if (_clients.find(fd) == _clients.end())
-				return;
-		} else if (n == 0) {
-			handleCloseClient(fd);
-			return;
-		} else {
-			if (errno == EINTR)
-				continue;
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
-				break;
-			handleCloseClient(fd);
-			return;
-		}
+	if (n <= 0) {
+		quitClient(fd, "Connection closed");
+		return;
 	}
+
+	Client& client = _clients[fd];
+	client.input.append(buffer, static_cast<std::string::size_type>(n));
+
+	if (client.input.size() > 65536) {
+		quitClient(fd, "Excess flood");
+		return;
+	}
+
+	processInput(fd);
 }
 
 void Server::handleWriteClient(int fd) {
 	std::map<int, Client>::iterator it = _clients.find(fd);
 	if (it == _clients.end())
-	return;
+		return;
 
 	std::string& out = it->second.output;
-
-	while (!out.empty()) {
-		ssize_t n = send(fd, out.data(), out.size(), 0);
-
-		if (n > 0)
-			out.erase(0, static_cast<std::string::size_type>(n));
-		else if (n == -1 && errno == EINTR)
-			continue;
-		else if (n == -1 &&
-				 (errno == EAGAIN || errno == EWOULDBLOCK))
-			break;
-		else {
-			handleCloseClient(fd);
-			return;
-		}
+	if (out.empty()) {
+		updatePollFd(fd);
+		return;
 	}
 
+	ssize_t n = send(fd, out.data(), out.size(), 0);
+	if (n < 0) {
+		quitClient(fd, "Connection closed");
+		return;
+	}
+	out.erase(0, static_cast<std::string::size_type>(n));
 	updatePollFd(fd);
 }
 
@@ -290,9 +267,67 @@ void Server::handleCloseClient(int fd) {
 			++ch;
 	}
 
+	std::cout << "[-] Client disconnected (fd " << fd << ", "
+			  << (it->second.nick.empty() ? "*" : it->second.nick) << ")" << std::endl;
+
 	close(fd);
 	removePollFd(fd);
 	_clients.erase(it);
+}
+
+/*
+ * Tell everyone who shares a channel with fd that it is leaving
+ * (once per peer), then close it.
+ */
+void Server::quitClient(int fd, const std::string& reason) {
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end())
+		return;
+
+	if (it->second.registered) {
+		std::set<int> peers;
+		for (std::map<std::string, Channel>::iterator ch = _channels.begin(); ch != _channels.end(); ++ch) {
+			if (ch->second.hasMember(fd))
+				peers.insert(ch->second.members.begin(), ch->second.members.end());
+		}
+		peers.erase(fd);
+		std::string msg = prefix(it->second) + " QUIT :" + reason;
+		for (std::set<int>::const_iterator p = peers.begin(); p != peers.end(); ++p)
+			queueMessage(*p, msg);
+	}
+	handleCloseClient(fd);
+}
+
+std::string Server::prefix(const Client& c) const {
+	return ":" + c.nick + "!" + c.user + "@localhost";
+}
+
+int Server::findFdByNick(const std::string& nick) const {
+	for (std::map<int, Client>::const_iterator it = _clients.begin(); it != _clients.end(); ++it) {
+		if (it->second.nick == nick)
+			return it->first;
+	}
+	return -1;
+}
+
+void Server::broadcast(const Channel& ch, const std::string& msg, int exceptFd) {
+	for (std::set<int>::const_iterator m = ch.members.begin(); m != ch.members.end(); ++m) {
+		if (*m != exceptFd)
+			queueMessage(*m, msg);
+	}
+}
+
+std::vector<std::string> Server::splitComma(const std::string& s) const {
+	std::vector<std::string> out;
+	std::string::size_type start = 0;
+	std::string::size_type pos;
+
+	while ((pos = s.find(',', start)) != std::string::npos) {
+		out.push_back(s.substr(start, pos - start));
+		start = pos + 1;
+	}
+	out.push_back(s.substr(start));
+	return out;
 }
 
 void Server::processInput(int fd) {
@@ -311,8 +346,10 @@ void Server::processInput(int fd) {
 		if (!line.empty() && line[line.size() - 1] == '\r')
 			line.erase(line.size() - 1);
 
-		if (!line.empty())
+		if (!line.empty()) {
+			std::cout << "[" << fd << "] >> " << line << std::endl;
 			handleCommand(fd, line);
+		}
 
 		if (_clients.find(fd) == _clients.end())
 			return;
@@ -330,6 +367,8 @@ void Server::handleCommand(int fd, const std::string& line) {
 	std::istringstream stream(line);
 	std::string cmd;
 	stream >> cmd;
+	if (cmd.empty())
+		return;
 	for (std::string::size_type i = 0; i < cmd.size(); ++i)
 		cmd[i] = static_cast<char>(std::toupper(static_cast<unsigned char>(cmd[i])));
 
@@ -356,13 +395,31 @@ void Server::handleCommand(int fd, const std::string& line) {
 	else if (cmd == "INVITE") cmdInvite(c, args);
 	else if (cmd == "MODE") cmdMode(c, args);
 	else if (cmd == "PRIVMSG") cmdPrivmsg(c, args);
-	else if (cmd == "QUIT") cmdQuit(c, args);
+	else if (cmd == "PING") cmdPing(c, args);
+	else if (cmd == "QUIT") {
+		cmdQuit(c, args);
+		return;	/* c no longer exists */
+	}
+	else if (cmd == "CAP") {
+		/* No IRCv3 capabilities: an empty list lets clients like irssi go on */
+		if (!args.empty() && args[0] == "LS")
+			queueMessage(fd, ":ircserv CAP * LS :");
+	}
+	else if (cmd == "PONG")
+		;	/* reply to our own PINGs, nothing to do */
+	else if (cmd == "WHO") {
+		if (c.registered)
+			sendNumericReply(fd, "315", (args.empty() ? "*" : args[0]) + " :End of WHO list");
+	}
+	else
+		sendNumericReply(fd, "421", cmd + " :Unknown command");
 
 	/*
 	 * Complete registration once PASS, NICK and USER have arrived.
 	 */
 	if (!c.registered && c.passOK && !c.nick.empty() && !c.user.empty()) {
 		c.registered = true;
+		std::cout << "[*] " << c.nick << " registered (fd " << fd << ")" << std::endl;
 		queueMessage(fd, ":ircserv 001 " + c.nick + " :Welcome to the IRC server");
 	}
 }

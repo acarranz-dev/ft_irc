@@ -1,4 +1,4 @@
-This project has been created as part of the 42 curriculum by `` and `sarodrig`.
+*This project has been created as part of the 42 curriculum by acarranz, sarodrig.*
 
 # ft_irc
 

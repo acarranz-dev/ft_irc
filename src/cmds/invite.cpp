@@ -23,21 +23,29 @@ void Server::cmdInvite(Client& c, const std::vector<std::string>& args) {
 	}
 	std::string target = args[0];
 	std::string chName = args[1];
+	int targetFd = findFdByNick(target);
+	if (targetFd == -1) {
+		sendNumericReply(c.fd, "401", target + " :No such nick/channel");
+		return;
+	}
 	std::map<std::string, Channel>::iterator ch = _channels.find(chName);
 	if (ch == _channels.end()) {
 		sendNumericReply(c.fd, "403", chName + " :No such channel");
 		return;
 	}
-	if (!ch->second.operators.count(c.fd)) {
-		sendNumericReply(c.fd, "482", chName + " :You are not channel operator");
+	if (!ch->second.hasMember(c.fd)) {
+		sendNumericReply(c.fd, "442", chName + " :You're not on that channel");
 		return;
 	}
-	for (std::map<int, Client>::const_iterator it = _clients.begin(); it != _clients.end(); ++it) {
-		if (it->second.nick != target)
-			continue;
-		ch->second.invited.insert(it->first);
-		queueMessage(it->first, ":" + c.nick + "!" + c.user + "@localhost INVITE " + target + " " + chName);
+	if (!ch->second.isOperator(c.fd)) {
+		sendNumericReply(c.fd, "482", chName + " :You're not channel operator");
 		return;
 	}
-	sendNumericReply(c.fd, "401", target + " :No such nick/channel");
+	if (ch->second.hasMember(targetFd)) {
+		sendNumericReply(c.fd, "443", target + " " + chName + " :is already on channel");
+		return;
+	}
+	ch->second.invite(targetFd);
+	sendNumericReply(c.fd, "341", target + " " + chName);
+	queueMessage(targetFd, prefix(c) + " INVITE " + target + " :" + chName);
 }
