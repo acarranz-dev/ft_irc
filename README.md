@@ -100,8 +100,8 @@ nc -C 127.0.0.1 6667
 Once connected, authenticate and register your user by typing the following commands **in raw format** (press Enter after each line):
 ```text
 PASS mypassword
-NICK noemi_nick
-USER noemi_user 0 * :noemi_real
+NICK santi_nick
+USER santi_user 0 * :santi_real
 ```
 
 After a successful registration, you can test channel management and messaging:
@@ -113,7 +113,7 @@ PRIVMSG #channel1 :Hello everyone
 * **Testing Channel Messages:** Open another terminal, run `nc` again, and register a second user. Join the same channel (`JOIN #channel1`) to see how messages are broadcasted and received between users.
 * **Testing Private Messages:** To send a direct message to a specific user, ensure you have a second user connected from another terminal. Then use the following syntax:
   ```text
-  PRIVMSG noemi_nick :Hola Noemi
+  PRIVMSG santi_nick :Hola santi
   ```
 
 * **Other Features:** You can also test the rest of the channel modes (`+i`, `+t`, `+k`, `+o`, `+l`) and operators commands (`KICK`, `INVITE`, `TOPIC`) following their standard IRC syntax.
@@ -136,39 +136,12 @@ To test the server using a real, robust CLI client like **Irssi**, open a new te
    * **Public Message (`PRIVMSG` to channel):** Simply type your text and press Enter inside the channel window to send a message to everyone.
    * **Private Message (`PRIVMSG` to user):** To open a private chat window with another connected user, use:
      ```text
-     /msg noemi_nick Hi!This is a private message
+     /msg santi_nick Hi!This is a private message
      ```
 
 Irssi uses separate windows for the server, channels, and private conversations.
 The active window number is displayed in Irssi's status bar.
 Press `Esc`, release it, and then press the number of the window you want to open.
-
-## Project structure
-
-```
-ft_irc/
-├── include/
-│   ├── Server.hpp
-│   ├── Client.hpp
-│   └── Channel.hpp
-├── src/
-│   ├── Channel.cpp
-│   ├── Client.cpp
-│   ├── main.cpp
-│   ├── Server.cpp
-│   └── commands/
-│       ├── Pass.cpp
-│       ├── Nick.cpp
-│       ├── User.cpp
-│       ├── Join.cpp
-│       ├── Privmsg.cpp
-│       ├── Topic.cpp
-│       ├── Kick.cpp
-│       ├── Invite.cpp
-│       └── Mode.cpp
-├── Makefile
-└── README.md
-```
 
 ## Resources
 
