@@ -6,7 +6,7 @@
 #    By: sarodrig <sarodrig@student.42barcelona.    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/02/04 03:08:30 by sarodrig          #+#    #+#              #
-#    Updated: 2026/10/02 23:05:57 by sarodrig         ###   ########.fr        #
+#    Updated: 2026/10/24 11:42:19 by sarodrig         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -30,7 +30,7 @@ NAME 			= ircserv
 
 INC_DIR			= inc/
 SRC_DIR			= src/
-SRC				= main.cpp Server.cpp
+SRC				= main.cpp Server.cpp Channel.cpp Client.cpp
 CMD_SRC			= cmds/pass.cpp cmds/nick.cpp cmds/user.cpp \
 				  cmds/join.cpp cmds/part.cpp cmds/topic.cpp \
 				  cmds/kick.cpp cmds/invite.cpp cmds/mode.cpp \
