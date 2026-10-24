@@ -6,56 +6,50 @@
 /*   By: sarodrig <sarodrig@student.42barcelona.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/14 11:41:04 by sarodrig          #+#    #+#             */
-/*   Updated: 2026/10/23 15:43:27 by sarodrig         ###   ########.fr       */
+/*   Updated: 2026/10/24 12:10:26 by sarodrig         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Channel.hpp"
 
-Channel::Channel()
-    : inviteOnly(false),
-      topicOps(false),
-      userLimit(0) {
+Channel::Channel(): 
+	inviteOnly(false),
+	topicOps(false),
+	userLimit(0) {
+}
+
+Channel::~Channel() {
+}
+
+Channel::Channel(const Channel& other): 
+	members(other.members),
+	operators(other.operators),
+	invited(other.invited),
+	topic(other.topic),
+	key(other.key),
+	inviteOnly(other.inviteOnly),
+	topicOps(other.topicOps),
+	userLimit(other.userLimit) {
+}
+
+Channel& Channel::operator=(const Channel& other) {
+	if (this != &other) {
+		members = other.members;
+		operators = other.operators;
+		invited = other.invited;
+		topic = other.topic;
+		key = other.key;
+		inviteOnly = other.inviteOnly;
+		topicOps = other.topicOps;
+		userLimit = other.userLimit;
+	}
+	return *this;
 }
 
 bool Channel::hasMember(int fd) const {
     return members.find(fd) != members.end();
 }
 
-// bool Channel::isOperator(int fd) const {
-//     return operators.find(fd) != operators.end();
-// }
-
-// bool Channel::isInvited(int fd) const {
-//     return invited.find(fd) != invited.end();
-// }
-
-// void Channel::addMember(int fd) {
-//     members.insert(fd);
-// }
-
-// void Channel::removeMember(int fd) {
-//     members.erase(fd);
-//     operators.erase(fd);
-//     invited.erase(fd);
-// }
-
 void Channel::addOperator(int fd) {
     if (hasMember(fd)) operators.insert(fd);
 }
-
-// void Channel::removeOperator(int fd) {
-//     operators.erase(fd);
-// }
-
-// void Channel::invite(int fd) {
-//     invited.insert(fd);
-// }
-
-// void Channel::removeInvitation(int fd) {
-//     invited.erase(fd);
-// }
-
-// bool Channel::isFull() const {
-//     return (userLimit > 0 && members.size() >= static_cast<std::size_t>(userLimit));
-// }

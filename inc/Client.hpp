@@ -18,6 +18,9 @@
 class Client {
 public:
 	Client(int fd = -1);
+	~Client();
+	Client(const Client&);
+	Client& operator=(const Client&);
 
 	int			fd;
 	std::string	nick;

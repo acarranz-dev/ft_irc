@@ -23,14 +23,17 @@
 # include "Channel.hpp"
 
 class Server {
-	public:
-		Server(int port, const std::string& password);
-		~Server();
+public:
+	Server(int port, const std::string& password);
+	~Server();
 
 	void	init();
 	void	run();
 
 private:
+	Server(const Server&);
+	Server& operator=(const Server&);
+
 	int						_port;
 	std::string				_password;
 	int						_socketFd;

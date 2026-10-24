@@ -19,6 +19,9 @@
 class Channel {
 public:
     Channel();
+    ~Channel();
+    Channel(const Channel&);
+    Channel& operator=(const Channel&);
 
     std::set<int> members;
     std::set<int> operators;

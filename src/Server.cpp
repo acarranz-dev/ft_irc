@@ -6,7 +6,7 @@
 /*   By: sarodrig <sarodrig@student.42barcelona.    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/10/02 22:15:06 by sarodrig          #+#    #+#             */
-/*   Updated: 2026/10/21 21:47:46 by sarodrig         ###   ########.fr       */
+/*   Updated: 2026/10/24 12:11:43 by sarodrig         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,8 +28,31 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-Server::Server(int port, const std::string& password)
-: _port(port), _password(password), _socketFd(-1), _running(false) {}
+Server::Server(int port, const std::string& password):
+	_port(port), _password(password), _socketFd(-1), _running(false) {}
+
+Server::Server(const Server& other):
+	_port(other._port),
+	_password(other._password),
+	_socketFd(other._socketFd),
+	_running(other._running),
+	_pollFds(other._pollFds),
+	_clients(other._clients),
+	_channels(other._channels) {
+}
+
+Server& Server::operator=(const Server& other) {
+	if (this != &other) {
+		_port = other._port;
+		_password = other._password;
+		_socketFd = other._socketFd;
+		_running = other._running;
+		_pollFds = other._pollFds;
+		_clients = other._clients;
+		_channels = other._channels;
+	}
+	return *this;
+}
 
 Server::~Server() {
 	_running = false;
