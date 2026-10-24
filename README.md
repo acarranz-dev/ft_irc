@@ -32,28 +32,29 @@ The project does **not** implement an IRC client and does **not** implement serv
 
 ### Supported commands
 
-| Command   | Description |
-|-----------|-------------|
-| `PASS`    | Authenticates the client with the server password. |
-| `NICK`    | Sets or changes the client's nickname. |
-| `USER`    | Sets the client's username as part of the registration process. |
-| `JOIN`    | Joins (or creates) a channel. |
-| `PRIVMSG` | Sends a message to a user or to a channel. |
-| `KICK`    | Kicks a user from a channel (operators only). |
-| `INVITE`  | Invites a user to a channel. |
-| `TOPIC`   | Views or changes a channel's topic. |
-| `MODE`    | Changes channel modes: `i`, `t`, `k`, `o`, `l`. |
+| Command | Description | Example |
+|---|---|---|
+| `PASS` | Authenticates the client using the server password. | `PASS server_password` |
+| `NICK` | Sets or changes the client's nickname. | `NICK nick` |
+| `USER` | Sets the client's username and registration information. | `USER nick 0 * :Real Name` |
+| `JOIN` | Joins or creates a channel. | `JOIN #channel` |
+| `PRIVMSG` | Sends a private message to a user or a message to a channel. | `PRIVMSG nick :Hello!` or `PRIVMSG #channel :Hello everyone!` |
+| `KICK` | Removes a user from a channel (channel operators only). | `KICK #channel nick :Rule violation` |
+| `INVITE` | Invites a user to join a channel. | `INVITE nick #channel` |
+| `TOPIC` | Views or changes a channel's topic. | `TOPIC #channel :Welcome to the channel` |
+| `MODE` | Queries or changes channel modes. | `MODE #channel +i` |
+| `PART` | Leaves a channel. | `PART #channel` |
+| `QUIT` | Disconnects the client from the server. | `QUIT :Goodbye` |
 
 ### Channel modes (`MODE`)
 
-| Mode | Meaning |
-|------|---------|
-| `i`  | Set/remove invite-only channel. |
-| `t`  | Restrict/unrestrict the `TOPIC` command to channel operators. |
-| `k`  | Set/remove the channel key (password). |
-| `o`  | Give/take channel operator privilege. |
-| `l`  | Set/remove the user limit of the channel. |
-
+| Mode | Description | Enable / Set | Disable / Remove |
+|---|---|---|---|
+| `i` | Restricts channel access to invited users. | `MODE #channel +i` | `MODE #channel -i` |
+| `t` | Restricts topic changes to channel operators. | `MODE #channel +t` | `MODE #channel -t` |
+| `k` | Sets or removes the channel password (key). | `MODE #channel +k secret123` | `MODE #channel -k secret123` |
+| `o` | Grants or revokes channel operator privileges. | `MODE #channel +o nick` | `MODE #channel -o nick` |
+| `l` | Sets or removes the maximum number of channel members. | `MODE #channel +l 10` | `MODE #channel -l` |
 
 ## Instructions
 
@@ -135,9 +136,9 @@ To test the server using a real, robust CLI client like **Irssi**, open a new te
    * **Join a channel (`JOIN`):** Type `/join #channel1` to create or enter a channel.
    * **Public Message (`PRIVMSG` to channel):** Simply type your text and press Enter inside the channel window to send a message to everyone.
    * **Private Message (`PRIVMSG` to user):** To open a private chat window with another connected user, use:
-     ```text
-     /msg santi_nick Hi!This is a private message
-     ```
+	 ```text
+	 /msg santi_nick Hi!This is a private message
+	 ```
 
 Irssi uses separate windows for the server, channels, and private conversations.
 The active window number is displayed in Irssi's status bar.
