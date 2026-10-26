@@ -2,6 +2,8 @@
 
 # ft_irc
 
+**English** · [Català](README.ca.md) · [Español](README.es.md)
+
 ## Description
 
 `ft_irc` is a custom **Internet Relay Chat (IRC) server** written from scratch in **C++98**, developed as part of the 42 Common Core.
